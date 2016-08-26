@@ -15,10 +15,10 @@
  */
 package io.zatarox.osgi.vertx.core.trackers;
 
-import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Verticle;
 import io.vertx.core.Vertx;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.felix.ipojo.annotations.*;
 import org.apache.felix.ipojo.whiteboard.Wbp;
 import org.apache.felix.ipojo.whiteboard.Whiteboards;
@@ -29,7 +29,7 @@ import org.osgi.framework.ServiceReference;
 @Provides
 @Whiteboards(whiteboards = {
     @Wbp(
-        filter = "(objectClass=io.vertx.core.AbstractVerticle)",
+        filter = "(objectClass=io.vertx.core.Verticle)",
         onArrival = "onArrival",
         onDeparture = "onDeparture"
     )
@@ -41,16 +41,17 @@ public final class VerticleTracker {
     @Context
     private BundleContext context;
 
-    private final Set<ServiceReference<AbstractVerticle>> services = new HashSet<>();
+    private final Map<ServiceReference<Verticle>, String> services = new HashMap<>();
 
-    public void onArrival(ServiceReference<AbstractVerticle> ref) {
-        vertx.deployVerticle(context.getService(ref));
-        services.add(ref);
+    public void onArrival(ServiceReference<Verticle> ref) {
+        vertx.deployVerticle(context.getService(ref), event -> {
+            services.put(ref, event.result());
+        });
     }
 
-    public void onDeparture(ServiceReference<AbstractVerticle> ref) {
-        final AbstractVerticle instance = context.getService(ref);
-        instance.getVertx().undeploy(instance.deploymentID(), event -> {
+    public void onDeparture(ServiceReference<Verticle> ref) {
+        final Verticle instance = context.getService(ref);
+        instance.getVertx().undeploy(services.get(ref), event -> {
             services.remove(ref);
         });
     }
